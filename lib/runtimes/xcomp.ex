@@ -6,6 +6,8 @@ defmodule Runtimes.XComp do
   alias Runtimes.Packages.Package
   alias Runtimes.XComp.Ctx
 
+  import Runtimes.Common
+
   @doc """
   Build the given packages for the specified cross compilation context.
   """
@@ -60,12 +62,30 @@ defmodule Runtimes.XComp do
   end
 
   defp build_package(package, arch_id, env) do
-    Mix.shell().cmd("make -C #{package.source_dir} -f #{package.mk} clean", env: env, quiet: true)
+    source_dir = ensure_clean_source(package, arch_id, env)
 
-    case Mix.shell().cmd("make -C #{package.source_dir} -f #{package.mk} build", env: env) do
+    case Mix.shell().cmd("make -C #{source_dir} -f #{package.mk} build", env: env) do
       0 -> :ok
       status -> Mix.raise("Failed to build #{package.name} for arch #{arch_id} (exit #{status})")
     end
+  end
+
+  defp ensure_clean_source(package, arch_id, env) do
+    source_dir =
+      if package.manager == :mix do
+        # mix compiles NIF in the source directory, copy sources
+        source_dir = Path.join(build_path(arch_id), package.name)
+        File.rm_rf!(source_dir)
+        File.cp_r!(package.source_dir, source_dir)
+
+        source_dir
+      else
+        package.source_dir
+      end
+
+    Mix.shell().cmd("make -C #{source_dir} -f #{package.mk} clean", env: env, quiet: true)
+
+    source_dir
   end
 
   defp install_arch(packages, arch_id, env) do

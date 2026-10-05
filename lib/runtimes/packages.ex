@@ -131,7 +131,7 @@ defmodule Runtimes.Packages do
   defp read_deps(%Package{} = package) do
     deps =
       package.mk
-      |> makefile_var("deps")
+      |> makefile_var("DEPS")
       |> String.split()
 
     %Package{package | deps: deps}
@@ -171,7 +171,7 @@ defmodule Runtimes.Packages do
         dep -> get_dep_scm(dep)
       end
 
-    %Package{package | repo: scm, tag: vsn}
+    %Package{package | manager: :mix, repo: scm, tag: vsn}
   end
 
   defp set_repo(%Package{} = package, repo, tag) do
