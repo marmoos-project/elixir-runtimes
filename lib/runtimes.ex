@@ -13,6 +13,13 @@ defmodule Runtimes do
   }
 
   @doc """
+  Returns default packages path
+  """
+  def packages_path do
+    Runtimes.Common.default_packages_path()
+  end
+
+  @doc """
   Returns the runtime struct for the given target.
 
   ## Examples
@@ -38,6 +45,13 @@ defmodule Runtimes do
         }
 
         {:ok, platform}
+    end
+  end
+
+  def find!(name) do
+    case find(name) do
+      {:ok, platform} -> platform
+      :error -> raise ArgumentError, "Unknown platform `#{name}`"
     end
   end
 

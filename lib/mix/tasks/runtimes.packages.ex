@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Runtime.Packages do
+defmodule Mix.Tasks.Runtimes.Packages do
   @shortdoc "Runtime packages actions"
   @moduledoc """
   Provides actions for managing runtime packages defined in the project.
@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Runtime.Packages do
   @elixir_mk Path.join(top_dir, "scripts/elixir.mk")
 
   def run(args) do
-    {:ok, platform} = Runtimes.find(Mix.target())
+    platform = Runtimes.find!(Mix.target())
 
     case args do
       [] ->

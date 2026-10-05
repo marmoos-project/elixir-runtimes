@@ -42,6 +42,11 @@ defmodule Mix.Tasks.Compile.Packages do
       |> Enum.filter(&Packages.supports_platform?(&1, platform))
       |> Packages.find(List.first(packages))
       |> Packages.sort()
+      |> tap(&Enum.each(&1, fn pkg ->
+        unless Packages.checked_out?(pkg) do
+          Mix.raise("Package #{pkg.name} is not checked out")
+        end
+      end))
 
     ctx = %XComp.Ctx{
       platform: platform,

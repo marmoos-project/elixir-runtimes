@@ -48,6 +48,11 @@ defmodule Runtimes.Packages do
     |> sort()
   end
 
+  def checked_out?(%Package{name: name}) do
+    repo_path = Path.join("deps", name)
+    File.exists?(repo_path)
+  end
+
   @doc """
   Find a package by name and include its dependencies, transitively.
   """
