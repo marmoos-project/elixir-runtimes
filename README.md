@@ -1,6 +1,6 @@
 # Runtimes
 
-**TODO: Add description**
+Provides utils and mix tasks for producing embedded OTP runtimes
 
 ## Installation
 
