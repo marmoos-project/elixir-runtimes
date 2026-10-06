@@ -10,4 +10,12 @@ defmodule Runtimes.Platform do
           archs: list(),
           module: module() | nil
         }
+
+  def create(name, module) do
+    %__MODULE__{
+      name: name,
+      archs: module.archs(),
+      module: module
+    }
+  end
 end

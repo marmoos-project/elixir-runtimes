@@ -12,6 +12,13 @@ defmodule Runtimes do
     android: Runtimes.Android
   }
 
+  def platforms do
+    @platforms
+    |> Enum.map(fn {name, module} ->
+      Platform.create(name, module)
+    end)
+  end
+
   @doc """
   Returns default packages path
   """
@@ -38,13 +45,7 @@ defmodule Runtimes do
         :error
 
       module ->
-        platform = %Platform{
-          name: name,
-          archs: module.archs(),
-          module: module
-        }
-
-        {:ok, platform}
+        {:ok, Platform.create(name, module)}
     end
   end
 

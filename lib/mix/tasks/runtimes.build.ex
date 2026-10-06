@@ -4,6 +4,11 @@ defmodule Mix.Tasks.Runtimes.Build do
   #{@shortdoc}
 
   Build OTP runtimes together with NIFs and required dependencies.
+
+  # Options
+
+  * `--archs` - Comma-separated list of target architectures.
+  * `--clean` - Clean the build artifacts.
   """
   use Mix.Task
 
@@ -12,10 +17,7 @@ defmodule Mix.Tasks.Runtimes.Build do
 
   import Runtimes.Common
 
-  # @manifest "compile.otp"
-  # @manifest_vsn 1
-
-  @switches [force: :boolean, archs: :string, clean: :boolean]
+  @switches [archs: :string, clean: :boolean]
 
   def run(args) do
     {opts, _, _} = OptionParser.parse(args, switches: @switches)
