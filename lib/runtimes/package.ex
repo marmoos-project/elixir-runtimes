@@ -40,6 +40,8 @@ defmodule Runtimes.Package do
 
   `openssl` package is required by OTP and its definition is included in `:runtimes` app.
   """
+  alias Runtimes.Platform
+
   defstruct mk: nil,
             name: nil,
             source_dir: nil,
@@ -49,7 +51,8 @@ defmodule Runtimes.Package do
             archs: [],
             platforms: [],
             manager: :runtimes,
-            extra_runtime: []
+            extra_runtime: [],
+            type: nil
 
   @type t :: %__MODULE__{
           mk: String.t() | nil,
@@ -61,6 +64,142 @@ defmodule Runtimes.Package do
           archs: [String.t()],
           platforms: [String.t()],
           manager: :runtimes | :mix,
-          extra_runtime: [String.t()]
+          extra_runtime: [String.t()],
+          type: :nif | :package | nil
         }
+
+  def create(makefile), do: create(makefile, nil)
+
+  def create(makefile, type) do
+    name = Path.basename(makefile, ".mk")
+    source_dir = Path.join(Mix.Project.deps_path(), name)
+
+    %__MODULE__{
+      name: name,
+      mk: makefile,
+      source_dir: source_dir,
+      type: type
+    }
+    |> read_deps()
+    |> read_repo()
+    |> read_platforms()
+    |> read_extra_runtime()
+  end
+
+  def checked_out?(%__MODULE__{name: name}) do
+    repo_path = Path.join("deps", name)
+    File.exists?(repo_path)
+  end
+
+  def ensure_type!(%__MODULE__{type: type} = package, type) do
+    package
+  end
+
+  def ensure_type!(%__MODULE__{type: type} = package, _type) do
+    Mix.raise("Package #{package.name} is not of type #{type}")
+  end
+
+  def ensure_platform!(%__MODULE__{} = package, %Platform{} = platform) do
+    unless supports_platform?(package, platform) do
+      Mix.raise("Package #{package.name} does not support platform #{platform.name}")
+    end
+
+    package
+  end
+
+  @doc """
+  Returns true if the package supports the given platform.
+  """
+  def supports_platform?(%__MODULE__{} = package, %Platform{} = platform) do
+    package.platforms == [] or platform.name in package.platforms
+  end
+
+  defp read_deps(%__MODULE__{} = package) do
+    deps =
+      package.mk
+      |> makefile_var("DEPS")
+      |> String.split()
+
+    %__MODULE__{package | deps: deps}
+  end
+
+  defp read_extra_runtime(%__MODULE__{} = package) do
+    extra_runtime =
+      package.mk
+      |> makefile_var("EXTRA_RUNTIME")
+      |> String.split()
+
+    %__MODULE__{package | extra_runtime: extra_runtime}
+  end
+
+  defp read_platforms(%__MODULE__{} = package) do
+    platforms =
+      package.mk
+      |> makefile_var("PLATFORMS")
+      |> String.split()
+
+    %__MODULE__{package | platforms: platforms}
+  end
+
+  defp read_repo(%__MODULE__{} = package) do
+    repo =
+      package.mk
+      |> makefile_var("REPO")
+      |> String.trim()
+
+    tag =
+      package.mk
+      |> makefile_var("TAG")
+      |> String.trim()
+
+    set_repo(package, repo, tag)
+  end
+
+  defp set_repo(%__MODULE__{} = package, "", _) do
+    deps = Mix.Project.config()[:deps]
+
+    {scm, vsn} =
+      case Enum.find(deps, fn
+             {name, _opts} -> "#{name}" == package.name
+           end) do
+        nil -> {nil, nil}
+        dep -> get_dep_scm(dep)
+      end
+
+    %__MODULE__{package | manager: :mix, repo: scm, tag: vsn}
+  end
+
+  defp set_repo(%__MODULE__{} = package, repo, tag) do
+    %__MODULE__{package | repo: repo, tag: tag}
+  end
+
+  defp get_dep_scm({_, vsn}) when is_binary(vsn) do
+    {:hex, vsn}
+  end
+
+  defp get_dep_scm({_, opts}) when is_list(opts) do
+    cond do
+      opts[:github] != nil ->
+        {"https://github.com/#{opts[:github]}", opts[:tag] || "master"}
+
+      opts[:git] != nil ->
+        {opts[:git], opts[:tag] || "master"}
+
+      true ->
+        nil
+    end
+  end
+
+  defp makefile_var(makefile, name) do
+    printer = "@echo $(#{name})"
+
+    {out, 0} =
+      System.cmd(
+        "make",
+        ["-f", makefile, "-s", "--eval=print:; #{printer}", "print"],
+        stderr_to_stdout: true
+      )
+
+    out
+  end
 end

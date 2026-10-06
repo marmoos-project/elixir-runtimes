@@ -1,14 +1,19 @@
 defmodule Mix.Tasks.Runtimes.Build do
   @shortdoc "Build OTP runtimes"
+  @usage """
+  Usage:
+    mix runtimes.build --archs <archs> [--clean] [nifs...]
+
+      archs - Comma-separated list of target architectures (see `mix runtimes platforms`).
+      clean - Clean the build artifacts before building.
+      nifs - Space-separated list of NIFs to build.
+  """
   @moduledoc """
   #{@shortdoc}
 
   Build OTP runtimes together with NIFs and required dependencies.
 
-  # Options
-
-  * `--archs` - Comma-separated list of target architectures.
-  * `--clean` - Clean the build artifacts.
+  #{@usage}
   """
   use Mix.Task
 
@@ -20,55 +25,71 @@ defmodule Mix.Tasks.Runtimes.Build do
   @switches [archs: :string, clean: :boolean]
 
   def run(args) do
-    {opts, _, _} = OptionParser.parse(args, switches: @switches)
+    {opts, nifs, _} = OptionParser.parse(args, switches: @switches)
     arch_ids = String.split(opts[:archs] || "", ",", trim: true)
 
     action = if opts[:clean], do: :clean, else: :build
 
     case Runtimes.find(Mix.target()) do
       {:ok, platform} ->
+        packages =
+          nifs
+          |> Packages.lookup(:nif, platform)
+          |> Packages.resolve()
+
         platform
         |> Runtimes.archs(arch_ids)
-        |> Enum.each(&do_action(action, platform, &1))
+        |> Enum.each(&do_action(action, packages, platform, &1))
 
       :error ->
         Mix.raise("Invalid platform: #{Mix.target()}")
     end
   end
 
-  defp do_action(:build, platform, arch) do
-    build(platform, arch)
+  defp do_action(:build, packages, platform, arch) do
+    build(packages, platform, arch)
   end
 
-  defp do_action(:clean, platform, arch) do
+  defp do_action(:clean, _packages, platform, arch) do
     Mix.shell().info("Cleaning OTP for platform #{platform.name}-#{arch.id}")
     env = platform |> env(arch)
     :ok = otp_mk(["clean"], env)
   end
 
-  defp build(platform, arch) do
-    Mix.shell().info("Building OTP runtime for #{platform.name}-#{arch.id}")
+  defp build(packages, platform, arch) do
+    Mix.shell().info("Building ERTS runtime for #{platform.name}-#{arch.id}")
 
     env = env(platform, arch)
+    %{nif: nifs, package: packages} = Enum.group_by(packages, & &1.type)
 
-    Mix.Task.run("compile.packages", ["--archs", arch.id])
+    Mix.Task.run("compile.packages", ["--archs", arch.id | Enum.map(packages, & &1.name)])
 
-    Mix.shell().info("Pre-compile OTP for NIFs")
+    Mix.shell().info("Pre-compile ERTS for NIFs")
     :ok = otp_mk(["prepare"], add_nif_env(env, otp_nifs(arch)))
 
     Mix.shell().info("Build elixir")
     :ok = elixir_mk(["build"], env)
     :ok = elixir_mk(["install"], env)
 
-    Mix.Task.rerun("compile.nifs", ["--archs", arch.id])
+    Mix.Task.rerun("compile.nifs", ["--archs", arch.id | Enum.map(nifs, & &1.name)])
 
-    Mix.shell().info("Build OTP with final NIFs")
-    extra_nifs = extra_nifs(arch)
+    Mix.shell().info("Assemble ERTS with final NIFs")
+
+    nifs_archives =
+      Enum.flat_map(nifs, fn nif ->
+        Path.wildcard(Path.join([staging_path(arch.id), nif.name, "*.a"]))
+      end)
+
+    nifs_extra =
+      nifs
+      |> Enum.flat_map(fn package ->
+        Enum.map(package.extra_runtime, &"-l#{&1}")
+      end)
 
     env =
       env
-      |> add_nif_env(otp_nifs(arch) ++ extra_nifs)
-      |> Kernel.++([{"LIBS", arch |> final_libs() |> Enum.join(" ")}])
+      |> add_nif_env(otp_nifs(arch) ++ nifs_archives)
+      |> Kernel.++([{"LIBS", Enum.join(nifs_archives ++ nifs_extra, " ")}])
 
     :ok = otp_mk(["build"], env)
 
@@ -81,8 +102,8 @@ defmodule Mix.Tasks.Runtimes.Build do
     OTP archives:
     #{Path.join(staging_path(arch.id), "otp")}
 
-    with NIFs:
-    #{extra_nifs |> Enum.map(&Path.relative_to(&1, staging_path(arch.id))) |> Enum.join("\n")}
+    includes NIFs:
+    #{nifs |> Enum.map(& &1.name) |> Enum.join("\n")}
     """)
 
     :ok
@@ -128,25 +149,6 @@ defmodule Mix.Tasks.Runtimes.Build do
     [{"NIFS", Enum.join(nifs, ",")} | env]
   end
 
-  # STATIC_NIF_LIBS precede LIBS on the ERTS link line, so the packages the NIFs
-  # build on go here: every staged package archive, dependents before their
-  # deps (Packages.find/1 sorts deps first). Only for the final build: the
-  # archives don't exist yet at `prepare`.
-  defp final_libs(arch) do
-    staging_path = staging_path(arch.id)
-
-    packages_path()
-    |> Packages.all()
-    |> Enum.reverse()
-    |> Enum.flat_map(fn package ->
-      nif_path = Path.wildcard(Path.join([staging_path, package.name, "*.a"]))
-
-      nif_extra_runtime = Enum.map(package.extra_runtime, &"-l#{&1}")
-
-      nif_path ++ nif_extra_runtime
-    end)
-  end
-
   defp openssl_lib(arch_id) do
     Path.join(staging_path(arch_id), "openssl/libcrypto.a")
   end
@@ -158,15 +160,5 @@ defmodule Mix.Tasks.Runtimes.Build do
       "#{build_path}/lib/asn1/priv/lib/#{arch.name}/asn1rt_nif.a",
       "#{build_path}/lib/crypto/priv/lib/#{arch.name}/crypto.a"
     ]
-  end
-
-  defp extra_nifs(arch) do
-    staging_path = staging_path(arch.id)
-
-    nifs_path()
-    |> Packages.all()
-    |> Enum.flat_map(fn nif ->
-      Path.wildcard(Path.join(staging_path, "#{nif.name}/*.a"))
-    end)
   end
 end

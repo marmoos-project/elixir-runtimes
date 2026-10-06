@@ -1,20 +1,21 @@
 defmodule Mix.Tasks.Runtimes.Packages do
   @shortdoc "Runtime packages actions"
+  @usage """
+    Usage:
+      mix runtimes.packages fetch - Fetch all runtime packages
+      mix runtimes.packages env <arch> - prints cross-compilation for the targeted arch
+      mix runtimes.packages nif_env <arch> - prints NIF env for the targeted arch
+      mix runtimes.packages help - Show this help message
+  """
   @moduledoc """
   Provides actions for managing runtime packages defined in the project.
 
-  Actions available are:
-  - [list packages]: List all runtime packages
-  - list nifs: List all cross compiled NIFs
-  - fetch: Fetch all runtime packages
-  - env <arch>: prints cross-compilation for the targeted arch
-  - nif_env <arch>: prints NIF env for the targeted arch
+  #{@usage}
   """
   use Mix.Task
 
-  import Runtimes.Common
-
   alias Runtimes
+  alias Runtimes.Package
   alias Runtimes.Packages
 
   top_dir = Path.dirname(Mix.Project.project_file())
@@ -26,13 +27,10 @@ defmodule Mix.Tasks.Runtimes.Packages do
 
     case args do
       [] ->
-        list("packages")
+        usage()
 
-      ["list"] ->
-        list("packages")
-
-      ["list", type] ->
-        list(type)
+      ["help"] ->
+        usage()
 
       ["fetch"] ->
         fetch_packages(platform)
@@ -48,12 +46,8 @@ defmodule Mix.Tasks.Runtimes.Packages do
     end
   end
 
-  defp list("packages") do
-    list_packages(packages_path())
-  end
-
-  defp list("nifs") do
-    list_packages(nifs_path())
+  defp usage do
+    Mix.shell().info(@usage)
   end
 
   defp env(arch_id) do
@@ -70,12 +64,12 @@ defmodule Mix.Tasks.Runtimes.Packages do
 
   defp fetch_packages(platform) do
     packages =
-      packages_path()
-      |> Packages.all()
-      |> Enum.filter(&Packages.supports_platform?(&1, platform))
+      []
+      |> Packages.lookup(:package, platform)
+      |> Packages.resolve()
       |> Kernel.++([
-        Packages.create(@otp_mk),
-        Packages.create(@elixir_mk)
+        Package.create(@otp_mk),
+        Package.create(@elixir_mk)
       ])
 
     Enum.each(packages, &fetch_package(&1))
@@ -112,31 +106,6 @@ defmodule Mix.Tasks.Runtimes.Packages do
       Mix.shell().cmd("git -C \"#{package.source_dir}\" checkout --detach \"#{package.tag}\"",
         quiet: true
       )
-  end
-
-  defp list_packages(paths) do
-    paths
-    |> Packages.all()
-    |> Enum.each(&Mix.shell().info(pp_package(&1)))
-  end
-
-  defp pp_package(package) do
-    """
-    Name: #{package.name}
-    Source Dir: #{package.source_dir}
-    Repo: #{package.repo}
-    Version: #{package.tag}
-    """ <>
-      if package.platforms != [] do
-        "Platforms: #{Enum.join(package.platforms, ", ")}\n"
-      else
-        "Platforms: *\n"
-      end <>
-      if package.deps != [] do
-        "Deps: #{Enum.join(package.deps, ", ")}\n"
-      else
-        ""
-      end
   end
 
   defp pp_env(env) do

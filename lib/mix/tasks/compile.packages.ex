@@ -1,5 +1,13 @@
 defmodule Mix.Tasks.Compile.Packages do
   @shortdoc "Build 3rd party packages for runtime"
+  @usage """
+  Usage:
+  mix compile.packages --archs <archs> [--force] [packages...]
+
+    archs - Comma-separated list of target architectures.
+    force - Rebuild all packages.
+    packages - Space-separated list of packages to build.
+  """
   @moduledoc """
   #{@shortdoc}
 
@@ -11,14 +19,9 @@ defmodule Mix.Tasks.Compile.Packages do
   revision of the mix dep holding its sources), its build env or its makefile
   changed since last build, or when one of its dependencies was rebuilt.
 
-  ## Command line options
-  * `--force` - rebuild all packages
-  * `--archs` - comma-separated list of architectures to build
-  * [package] - build only the specified package and its deps
+  #{@usage}
   """
   use Mix.Task.Compiler
-
-  import Runtimes.Common
 
   alias Runtimes
   alias Runtimes.Packages
@@ -37,16 +40,9 @@ defmodule Mix.Tasks.Compile.Packages do
     {:ok, platform} = Runtimes.find(Mix.target())
 
     packages =
-      packages_path()
-      |> Packages.load()
-      |> Enum.filter(&Packages.supports_platform?(&1, platform))
-      |> Packages.find(List.first(packages))
-      |> Packages.sort()
-      |> tap(&Enum.each(&1, fn pkg ->
-        unless Packages.checked_out?(pkg) do
-          Mix.raise("Package #{pkg.name} is not checked out")
-        end
-      end))
+      packages
+      |> Packages.lookup(:package, platform)
+      |> Packages.resolve()
 
     ctx = %XComp.Ctx{
       platform: platform,

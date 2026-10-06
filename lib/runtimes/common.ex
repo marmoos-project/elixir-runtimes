@@ -27,6 +27,10 @@ defmodule Runtimes.Common do
     Application.app_dir(:runtimes, "priv/#{@default_packages_dir}")
   end
 
+  def default_nifs_path do
+    Application.app_dir(:runtimes, "priv/#{@default_nifs_dir}")
+  end
+
   # Returns list of directories to look for packages makefiles
   def packages_path do
     case Mix.Project.config()[:app] do
@@ -47,13 +51,20 @@ defmodule Runtimes.Common do
 
   # Returns list of directories to look for NIF makefiles
   def nifs_path do
-    Mix.Project.config()[:nifs_path] ||
-      [
-        Path.join(
-          Path.dirname(Mix.Project.project_file()),
-          @default_nifs_dir
-        )
-      ]
+    case Mix.Project.config()[:app] do
+      :runtimes ->
+        [default_nifs_path()]
+
+      _ ->
+        Mix.Project.config()[:nifs_path] ||
+          [
+            default_nifs_path(),
+            Path.join(
+              Path.dirname(Mix.Project.project_file()),
+              @default_nifs_dir
+            )
+          ]
+    end
   end
 
   def scripts_path do

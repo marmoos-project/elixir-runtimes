@@ -1,5 +1,13 @@
 defmodule Mix.Tasks.Compile.Nifs do
   @shortdoc "Cross-compile NIFs"
+  @usage """
+  Usage:
+    mix compile.nifs [--force] [--archs=arch1,arch2,...] [nif...]
+
+      force - Rebuild all NIFs.
+      archs - Comma-separated list of target architectures.
+      nifs - Space-separated list of NIFs to build.
+  """
   @moduledoc """
   #{@shortdoc}
 
@@ -11,13 +19,9 @@ defmodule Mix.Tasks.Compile.Nifs do
   revision of the mix dep holding its sources), its build env or its makefile
   changed since last build, or when one of its dependencies was rebuilt.
 
-  ## Command line options
-  * `--force` - rebuild all packages
-  * `--archs` - comma-separated list of architectures to build
+  #{@usage}
   """
   use Mix.Task.Compiler
-
-  import Runtimes.Common
 
   alias Runtimes
   alias Runtimes.Packages
@@ -30,15 +34,12 @@ defmodule Mix.Tasks.Compile.Nifs do
 
   @impl Mix.Task.Compiler
   def run(args) do
-    {opts, _, _} = OptionParser.parse(args, switches: @switches)
+    {opts, nifs, _} = OptionParser.parse(args, switches: @switches)
     arch_ids = String.split(opts[:archs] || "", ",", trim: true)
 
     {:ok, platform} = Runtimes.find(Mix.target())
 
-    packages =
-      nifs_path()
-      |> Packages.all()
-      |> Enum.filter(&Packages.supports_platform?(&1, platform))
+    packages = Packages.lookup(nifs, :nif, platform)
 
     ctx = %XComp.Ctx{
       platform: platform,
