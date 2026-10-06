@@ -25,7 +25,7 @@ defmodule Runtimes.Package do
 
   Makefiles can also define variable that will be used to collect package metadata:
   - `REPO` - required, git repository URL
-  - `TAG` - required, git tag or commit hash
+  - `TAG` - git tag or commit hash, default to `master`
   - `DEPS` - space separated list of dependencies
   - `PLATFORMS` - optional, space separated list of supported platforms
   - `EXTRA_RUNTIME` - optional, space separated list of extra runtime libraries required by the package
@@ -154,7 +154,12 @@ defmodule Runtimes.Package do
     set_repo(package, repo, tag)
   end
 
+  defp set_repo(%__MODULE__{} = package, "", _) do
+    raise "Package #{package.name} does not have a repository URL set in its makefile"
+  end
+
   defp set_repo(%__MODULE__{} = package, repo, tag) do
+    tag = if tag == "", do: "master", else: tag
     %__MODULE__{package | repo: repo, tag: tag}
   end
 
