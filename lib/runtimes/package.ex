@@ -168,8 +168,7 @@ defmodule Runtimes.Package do
     {out, 0} =
       System.cmd(
         "make",
-        ["-f", makefile, "-s", "--eval=print:; #{printer}", "print"],
-        stderr_to_stdout: true
+        ["-f", makefile, "-s", "--eval=print:; #{printer}", "print"]
       )
 
     out
