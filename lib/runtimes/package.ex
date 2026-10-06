@@ -24,11 +24,11 @@ defmodule Runtimes.Package do
   It includes also platform specific environment variables.
 
   Makefiles can also define variable that will be used to collect package metadata:
-  - `DEPS`
-  - `REPO`
-  - `TAG`
-  - `PLATFORMS`
-  - `EXTRA_RUNTIME`
+  - `REPO` - required, git repository URL
+  - `TAG` - required, git tag or commit hash
+  - `DEPS` - space separated list of dependencies
+  - `PLATFORMS` - optional, space separated list of supported platforms
+  - `EXTRA_RUNTIME` - optional, space separated list of extra runtime libraries required by the package
 
   # NIF
 
@@ -63,7 +63,6 @@ defmodule Runtimes.Package do
           tag: String.t() | nil,
           archs: [String.t()],
           platforms: [String.t()],
-          manager: :runtimes | :mix,
           extra_runtime: [String.t()],
           type: :nif | :package | nil
         }
@@ -155,39 +154,8 @@ defmodule Runtimes.Package do
     set_repo(package, repo, tag)
   end
 
-  defp set_repo(%__MODULE__{} = package, "", _) do
-    deps = Mix.Project.config()[:deps]
-
-    {scm, vsn} =
-      case Enum.find(deps, fn
-             {name, _opts} -> "#{name}" == package.name
-           end) do
-        nil -> {nil, nil}
-        dep -> get_dep_scm(dep)
-      end
-
-    %__MODULE__{package | manager: :mix, repo: scm, tag: vsn}
-  end
-
   defp set_repo(%__MODULE__{} = package, repo, tag) do
     %__MODULE__{package | repo: repo, tag: tag}
-  end
-
-  defp get_dep_scm({_, vsn}) when is_binary(vsn) do
-    {:hex, vsn}
-  end
-
-  defp get_dep_scm({_, opts}) when is_list(opts) do
-    cond do
-      opts[:github] != nil ->
-        {"https://github.com/#{opts[:github]}", opts[:tag] || "master"}
-
-      opts[:git] != nil ->
-        {opts[:git], opts[:tag] || "master"}
-
-      true ->
-        nil
-    end
   end
 
   defp makefile_var(makefile, name) do

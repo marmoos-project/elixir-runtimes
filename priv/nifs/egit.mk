@@ -1,3 +1,5 @@
+REPO = https://github.com/saleyn/egit.git
+TAG = 384977b0cb1371079dafa1b3e6ff2b327d857b75
 DEPS = libgit2 libssh2
 EXTRA_RUNTIME = c++_static c++abi
 

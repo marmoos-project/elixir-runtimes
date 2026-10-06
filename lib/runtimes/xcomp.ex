@@ -72,7 +72,7 @@ defmodule Runtimes.XComp do
 
   defp ensure_clean_source(package, arch_id, env) do
     source_dir =
-      if package.manager == :mix do
+      if package.type == :nif do
         # mix compiles NIF in the source directory, copy sources
         source_dir = Path.join(build_path(arch_id), package.name)
         File.rm_rf!(source_dir)

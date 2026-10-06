@@ -1,3 +1,6 @@
+REPO = https://github.com/diodechain/esqlite
+TAG = a4289840d12bd48d6bbdbb522e6330fb97824fe7
+
 nif = esqlite3_nif.a
 
 # esqlite's own static build (`make all` with STATIC_ERLANG_NIF) puts its objects
