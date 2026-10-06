@@ -10,8 +10,8 @@ On top of that, this project adds:
   resolved and built in order, and a package is rebuilt only when its source
   revision, build env or makefile changed, or when one of its dependencies was
   rebuilt.
-- **A repository of known NIFs:** NIFs (`esqlite`, `egit`) and libraries
-  (`openssl`, `libssh2`, `libgit2`) ship ready to use. Projects can add their own.
+- **A repository of known NIFs:** NIFs (`esqlite`, `egit`, `libsecp256k1`) and
+  libraries (`openssl`, `libssh2`, `libgit2`, `secp256k1`) ship ready to use. Projects can add their own.
 
 Supported platforms: `android` (`arm`, `arm64`, `x86_64`). List them with `mix runtimes platforms`.
 
