@@ -28,10 +28,12 @@ defmodule Runtimes.Packages do
   Given a list of packages, returns sorted list of packages + their dependencies in topological order.
   """
   def resolve(packages) do
+    :ok = Repo.ensure_started()
     repo = Repo.all()
 
     packages
-    |> expand(repo, MapSet.new())
+    |> expand(repo, %{})
+    |> Map.values()
     |> sort()
   end
 
@@ -49,10 +51,15 @@ defmodule Runtimes.Packages do
   defp expand([], _repo, acc), do: acc
 
   defp expand([pkg | rest], repo, acc) do
-    if MapSet.member?(acc, pkg.name) do
+    if Map.has_key?(acc, pkg.name) do
       expand(rest, repo, acc)
     else
-      expand(pkg.deps ++ rest, repo, MapSet.put(acc, pkg.name))
+      deps =
+        Enum.map(pkg.deps, fn name ->
+          repo[name] || Mix.raise("Package #{pkg.name} depends on unknown package #{name}")
+        end)
+
+      expand(deps ++ rest, repo, Map.put(acc, pkg.name, pkg))
     end
   end
 

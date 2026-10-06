@@ -67,11 +67,9 @@ defmodule Runtimes.Common do
     end
   end
 
+  # Directory holding OTP and Elixir makefiles
   def scripts_path do
-    Path.join(
-      Path.dirname(Mix.Project.project_file()),
-      "scripts"
-    )
+    Application.app_dir(:runtimes, "priv")
   end
 
   def install_program() do

@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Runtimes.Packages do
   @shortdoc "Runtime packages actions"
   @usage """
     Usage:
-      mix runtimes.packages fetch - Fetch all runtime packages
+      mix runtimes.packages fetch - Fetch sources of OTP, Elixir, NIFs and packages
       mix runtimes.packages env <arch> - prints cross-compilation for the targeted arch
       mix runtimes.packages nif_env <arch> - prints NIF env for the targeted arch
       mix runtimes.packages help - Show this help message
@@ -18,13 +18,9 @@ defmodule Mix.Tasks.Runtimes.Packages do
   alias Runtimes.Package
   alias Runtimes.Packages
 
-  top_dir = Path.dirname(Mix.Project.project_file())
-  @otp_mk Path.join(top_dir, "scripts/otp.mk")
-  @elixir_mk Path.join(top_dir, "scripts/elixir.mk")
+  import Runtimes.Common
 
   def run(args) do
-    platform = Runtimes.find!(Mix.target())
-
     case args do
       [] ->
         usage()
@@ -33,7 +29,7 @@ defmodule Mix.Tasks.Runtimes.Packages do
         usage()
 
       ["fetch"] ->
-        fetch_packages(platform)
+        fetch_packages(platform!())
 
       ["env", arch] ->
         env(arch)
@@ -51,61 +47,58 @@ defmodule Mix.Tasks.Runtimes.Packages do
   end
 
   defp env(arch_id) do
-    {:ok, platform} = Runtimes.find(Mix.target())
-    env = Runtimes.env(platform, arch_id)
+    env = Runtimes.env(platform!(), arch_id)
     pp_env(env)
   end
 
   defp nif_env(arch_id) do
-    {:ok, platform} = Runtimes.find(Mix.target())
-    env = Runtimes.nif_env(platform, arch_id)
+    env = Runtimes.nif_env(platform!(), arch_id)
     pp_env(env)
+  end
+
+  defp platform! do
+    case Runtimes.find(Mix.target()) do
+      {:ok, platform} -> platform
+      :error -> Mix.raise("Invalid platform: #{Mix.target()}")
+    end
   end
 
   defp fetch_packages(platform) do
     packages =
-      []
-      |> Packages.lookup(:package, platform)
+      (Packages.lookup([], :package, platform) ++ Packages.lookup([], :nif, platform))
       |> Packages.resolve()
       |> Kernel.++([
-        Package.create(@otp_mk),
-        Package.create(@elixir_mk)
+        Package.create(Path.join(scripts_path(), "otp.mk")),
+        Package.create(Path.join(scripts_path(), "elixir.mk"))
       ])
 
-    Enum.each(packages, &fetch_package(&1))
+    Enum.each(packages, &fetch_package/1)
   end
 
+  # Shallow fetch of TAG, which may be a tag, a branch or a commit hash
   defp fetch_package(package) do
-    Mix.shell().info("* #{package.name} (git)")
-    Mix.shell().info("  checked out #{package.tag}")
+    Mix.shell().info("* #{package.name} (#{package.repo} - #{package.tag})")
 
-    if File.exists?(package.source_dir) do
-      update_package_repo(package)
-    else
-      clone_package_repo(package)
+    unless File.dir?(Path.join(package.source_dir, ".git")) do
+      File.mkdir_p!(package.source_dir)
+      git!(package, ["init", "--quiet"])
+      git!(package, ["remote", "add", "origin", package.repo])
     end
 
-    Mix.shell().info("  ok")
+    git!(package, ["fetch", "--quiet", "--depth", "1", "origin", package.tag])
+    git!(package, ["checkout", "--quiet", "--detach", "FETCH_HEAD"])
   end
 
-  defp clone_package_repo(package) do
-    0 =
-      Mix.shell().cmd("git clone --branch \"#{package.tag}\" --depth 1 \
-      \"#{package.repo}\" \"#{package.source_dir}\"",
-        quiet: true
-      )
-  end
+  defp git!(package, args) do
+    case System.cmd("git", ["-C", package.source_dir | args], stderr_to_stdout: true) do
+      {_, 0} ->
+        :ok
 
-  defp update_package_repo(package) do
-    0 =
-      Mix.shell().cmd(
-        "git -C \"#{package.source_dir}\" fetch --depth 1 origin \"refs/tags/#{package.tag}:refs/tags/#{package.tag}\""
-      )
-
-    0 =
-      Mix.shell().cmd("git -C \"#{package.source_dir}\" checkout --detach \"#{package.tag}\"",
-        quiet: true
-      )
+      {out, status} ->
+        Mix.raise(
+          "Fetching #{package.name} failed: git #{Enum.join(args, " ")} exited with #{status}\n#{out}"
+        )
+    end
   end
 
   defp pp_env(env) do
