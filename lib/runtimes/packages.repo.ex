@@ -5,8 +5,14 @@ defmodule Runtimes.Packages.Repo do
 
   import Runtimes.Common
 
-  def ensure_started do
-    case Agent.start_link(&init/0, name: __MODULE__) do
+  def ensure_started(args \\ []) do
+    nifs_path = Keyword.get(args, :nifs_path, nifs_path())
+    packages_path = Keyword.get(args, :packages_path, packages_path())
+
+    case Agent.start_link(
+           fn -> init(nifs_path, packages_path) end,
+           name: __MODULE__
+         ) do
       {:ok, _pid} ->
         load()
 
@@ -16,6 +22,10 @@ defmodule Runtimes.Packages.Repo do
       {:error, reason} ->
         Mix.raise("Failed to start Packages Repo: #{inspect(reason)}")
     end
+  end
+
+  def stop do
+    Agent.stop(__MODULE__)
   end
 
   def all do
@@ -34,17 +44,21 @@ defmodule Runtimes.Packages.Repo do
     end)
   end
 
-  def loaded? do
+  defp loaded? do
     Agent.get(__MODULE__, fn state -> state[:loaded?] end)
   end
 
-  defp init do
-    %{packages: %{}, loaded?: false}
+  defp init(nifs_path, packages_path) do
+    %{nifs_path: nifs_path, packages_path: packages_path, packages: %{}, loaded?: false}
+  end
+
+  defp get(key) do
+    Agent.get(__MODULE__, fn state -> Map.get(state, key) end)
   end
 
   defp load do
     nifs =
-      nifs_path()
+      get(:nifs_path)
       |> Enum.flat_map(fn dir ->
         dir
         |> Path.join("*.mk")
@@ -53,7 +67,7 @@ defmodule Runtimes.Packages.Repo do
       |> Enum.map(&Package.create(&1, :nif))
 
     packages =
-      packages_path()
+      get(:packages_path)
       |> Enum.flat_map(fn dir ->
         dir
         |> Path.join("*.mk")
@@ -72,8 +86,6 @@ defmodule Runtimes.Packages.Repo do
   end
 
   defp ensure_loaded do
-    unless loaded?() do
-      load()
-    end
+    if loaded?(), do: :ok, else: load()
   end
 end
