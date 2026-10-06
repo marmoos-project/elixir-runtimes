@@ -17,7 +17,12 @@ defmodule Runtimes.MixProject do
     ]
   end
 
+  def cli do
+    [preferred_envs: [docs: :doc]]
+  end
+
   defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(:doc), do: ["lib", "assets"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help compile.app" to learn about applications.
@@ -31,17 +36,21 @@ defmodule Runtimes.MixProject do
   defp deps do
     [
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.38", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.38", only: [:dev, :doc], runtime: false}
     ]
   end
 
   defp docs do
     [
       main: "readme",
+      formatters: [Runtimes.Docs.Html, "markdown", "epub"],
       logo: "assets/logo.svg",
       extras: ["README.md"],
+      source_ref: "master",
       groups_for_modules: [
-        "Mix tasks": ~r/^Mix\.Tasks\./
+        "Mix tasks": ~r/^Mix\.Tasks\./,
+        NIF: ~r/^Runtimes\.Packages\.Nif\./,
+        Packages: ~r/^Runtimes\.Packages\.Package\./
       ]
     ]
   end
