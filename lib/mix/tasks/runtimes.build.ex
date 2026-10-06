@@ -32,9 +32,11 @@ defmodule Mix.Tasks.Runtimes.Build do
 
     case Runtimes.find(Mix.target()) do
       {:ok, platform} ->
+        # OTP's crypto NIF is a dependent of openssl like any other NIF.
         packages =
           nifs
           |> Packages.lookup(:nif, platform)
+          |> Kernel.++([Packages.find!("openssl")])
           |> Packages.resolve()
 
         platform
@@ -58,14 +60,20 @@ defmodule Mix.Tasks.Runtimes.Build do
 
   defp build(packages, platform, arch) do
     Mix.shell().info("Building ERTS runtime for #{platform.name}-#{arch.id}")
-
     env = env(platform, arch)
     %{nif: nifs, package: packages} = Enum.group_by(packages, & &1.type)
 
     Mix.Task.run("compile.packages", ["--archs", arch.id | Enum.map(packages, & &1.name)])
 
-    Mix.shell().info("Pre-compile ERTS for NIFs")
-    :ok = otp_mk(["prepare"], add_nif_env(env, otp_nifs(arch)))
+    # Static NIFs' external dependencies must be linked into beam itself (see
+    # --enable-static-nifs in erts/configure). `packages` lists dependencies
+    # first; on the link line, dependents go first.
+    packages_archives =
+      packages
+      |> Enum.reverse()
+      |> Enum.flat_map(&archives(&1, arch))
+
+    :ok = do_prepare(packages_archives, env)
 
     Mix.shell().info("Build elixir")
     :ok = elixir_mk(["build"], env)
@@ -74,11 +82,7 @@ defmodule Mix.Tasks.Runtimes.Build do
     Mix.Task.rerun("compile.nifs", ["--archs", arch.id | Enum.map(nifs, & &1.name)])
 
     Mix.shell().info("Assemble ERTS with final NIFs")
-
-    nifs_archives =
-      Enum.flat_map(nifs, fn nif ->
-        Path.wildcard(Path.join([staging_path(arch.id), nif.name, "*.a"]))
-      end)
+    nifs_archives = Enum.flat_map(nifs, &archives(&1, arch))
 
     nifs_extra =
       nifs
@@ -89,7 +93,7 @@ defmodule Mix.Tasks.Runtimes.Build do
     env =
       env
       |> add_nif_env(otp_nifs(arch) ++ nifs_archives)
-      |> Kernel.++([{"LIBS", Enum.join(nifs_archives ++ nifs_extra, " ")}])
+      |> add_libs_env(nifs_archives ++ packages_archives ++ nifs_extra)
 
     :ok = otp_mk(["build"], env)
 
@@ -107,6 +111,12 @@ defmodule Mix.Tasks.Runtimes.Build do
     """)
 
     :ok
+  end
+
+  defp do_prepare(packages_archives, env) do
+    Mix.shell().info("Prepare ERTS for NIFs")
+    env = add_libs_env(env, packages_archives)
+    :ok = otp_mk(["prepare"], env)
   end
 
   defp otp_mk(args, env) do
@@ -139,7 +149,6 @@ defmodule Mix.Tasks.Runtimes.Build do
     |> Kernel.++([
       {"MAKEFLAGS", "-j#{System.schedulers_online()} --no-print-directory"},
       {"RELEASE_BEAM", "yes"},
-      {"LIBS", openssl_lib(arch.id)},
       {"INSTALL_PROGRAM", install_program()},
       {"BUILD_INDEP_PATH", build_path("indep")}
     ])
@@ -149,8 +158,12 @@ defmodule Mix.Tasks.Runtimes.Build do
     [{"NIFS", Enum.join(nifs, ",")} | env]
   end
 
-  defp openssl_lib(arch_id) do
-    Path.join(staging_path(arch_id), "openssl/libcrypto.a")
+  defp add_libs_env(env, libs) do
+    [{"LIBS", Enum.join(libs, " ")} | env]
+  end
+
+  defp archives(package, arch) do
+    Path.wildcard(Path.join([staging_path(arch.id), package.name, "*.a"]))
   end
 
   defp otp_nifs(arch) do
