@@ -4,6 +4,7 @@ defmodule Runtimes do
   """
   import Runtimes.Common
 
+  alias Runtimes.Arch
   alias Runtimes.Platform
 
   @type env :: list({String.t(), String.t()})
@@ -63,7 +64,7 @@ defmodule Runtimes do
   @doc """
   Returns all available arch configs for given platform
   """
-  @spec archs(Platform.t(), list(String.t())) :: list(map())
+  @spec archs(Platform.t(), list(String.t())) :: list(Arch.t())
   def archs(%Platform{} = platform, arch_ids) do
     ids = if arch_ids == [], do: platform.archs, else: arch_ids
 
@@ -75,7 +76,7 @@ defmodule Runtimes do
   @doc """
   Returns arch config for the given arch ID
   """
-  @spec arch!(Platform.t(), String.t() | map()) :: map()
+  @spec arch!(Platform.t(), String.t() | Arch.t()) :: Arch.t()
   def arch!(%Platform{} = platform, arch_id) when is_binary(arch_id) do
     if arch_id in platform.archs do
       platform.module.get_arch(arch_id)
@@ -84,12 +85,12 @@ defmodule Runtimes do
     end
   end
 
-  def arch!(_platform, %{} = arch), do: arch
+  def arch!(_platform, %Arch{} = arch), do: arch
 
   @doc """
   Build env for given platform and arch
   """
-  @spec env(Platform.t(), String.t() | map()) :: env()
+  @spec env(Platform.t(), String.t() | Arch.t()) :: env()
   def env(%Platform{} = platform, arch) do
     arch = arch!(platform, arch)
 
@@ -141,9 +142,9 @@ defmodule Runtimes do
   defp base_env(platform, arch) do
     [
       {"PLATFORM", "#{platform.name}"},
-      {"ARCH", arch[:id]},
-      {"ARCH_NAME", arch[:name]},
-      {"ARCH_XCOMP", arch[:xcomp]},
+      {"ARCH", arch.id},
+      {"ARCH_NAME", arch.name},
+      {"ARCH_XCOMP", arch.xcomp},
       {"DEPS_PATH", Mix.Project.deps_path()},
       {"BUILD_PATH", build_path(arch.id)},
       {"STAGING_PATH", staging_path(arch.id)}

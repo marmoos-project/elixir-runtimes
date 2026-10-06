@@ -1,11 +1,15 @@
 defmodule Runtimes.Android do
   @moduledoc false
+  @behaviour Runtimes.Platform
+
   import Runtimes.Common
+
+  alias Runtimes.Arch
 
   @android_abi_version 26
 
   @archs %{
-    "arm" => %{
+    "arm" => %Arch{
       xcomp: "arm-android",
       openssl_arch: "android-arm",
       id: "arm",
@@ -18,7 +22,7 @@ defmodule Runtimes.Android do
       android_type: "armeabi-v7a",
       cflags: "--target=arm-linux-android#{@android_abi_version} -march=armv7-a -mfpu=neon"
     },
-    "arm64" => %{
+    "arm64" => %Arch{
       xcomp: "arm64-android",
       openssl_arch: "android-arm64",
       id: "arm64",
@@ -31,7 +35,7 @@ defmodule Runtimes.Android do
       android_type: "arm64-v8a",
       cflags: "--target=aarch64-linux-android#{@android_abi_version}"
     },
-    "x86_64" => %{
+    "x86_64" => %Arch{
       xcomp: "x86_64-android",
       openssl_arch: "android-x86_64",
       id: "x86_64",
@@ -46,12 +50,15 @@ defmodule Runtimes.Android do
     }
   }
 
+  @impl true
   def archs, do: Map.keys(@archs)
 
+  @impl true
   def get_arch(arch) do
     Map.fetch!(@archs, arch)
   end
 
+  @impl true
   def build_env(env, arch) do
     env = Map.new(env)
     path = env["PATH"] || System.get_env("PATH")
@@ -81,6 +88,7 @@ defmodule Runtimes.Android do
     |> Map.to_list()
   end
 
+  @impl true
   def nif_env(env, arch) do
     ldflags =
       "-v -lc++ -L#{Path.join(ndk_home(), "toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/#{arch.cpu}-linux-android/#{arch.abi}")}"

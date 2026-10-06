@@ -220,11 +220,11 @@ Android.
 
 ### 1. Platform contract
 
-- [ ] Turn the functions every platform module implements (`archs/0`,
-      `get_arch/1`, `build_env/2`, `nif_env/2`) into
-      `@behaviour Runtimes.Platform` callbacks, plus the new ones below
-      (`merge_archives/3`, `package/1`, `install_program/0`). Make
-      `Runtimes.Android` declare it.
+- [x] `@behaviour Runtimes.Platform` with `archs/0`, `get_arch/1`,
+      `build_env/2`, `nif_env/2`, and a `Runtimes.Platform.arch()` type.
+      `Runtimes.Android` declares it.
+- [ ] Add `merge_archives/3` (§2), `package/1` (§2, optional callback) and
+      `install_program/0` (§5) to the behaviour as those items land.
 
 ### 2. Runtime assembly
 
@@ -284,8 +284,6 @@ Android.
 
 ### 6. Tests
 
-- [ ] `Runtimes.Android` implements the behaviour (compile-time check is
-      enough).
 - [ ] A platform-conditional makefile variable is read with the right
       `PLATFORM`.
 - [ ] Archive merge with host `ar` on two tiny fake archives: the result
