@@ -19,6 +19,7 @@ defmodule Runtimes.Packages do
     |> read_deps()
     |> read_repo()
     |> read_platforms()
+    |> read_extra_runtime()
   end
 
   @doc """
@@ -135,6 +136,15 @@ defmodule Runtimes.Packages do
       |> String.split()
 
     %Package{package | deps: deps}
+  end
+
+  defp read_extra_runtime(%Package{} = package) do
+    extra_runtime =
+      package.mk
+      |> makefile_var("EXTRA_RUNTIME")
+      |> String.split()
+
+    %Package{package | extra_runtime: extra_runtime}
   end
 
   defp read_platforms(%Package{} = package) do

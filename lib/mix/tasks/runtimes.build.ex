@@ -1,9 +1,9 @@
-defmodule Mix.Tasks.Compile.Otp do
-  @shortdoc "Cross compile OTP"
+defmodule Mix.Tasks.Runtimes.Build do
+  @shortdoc "Build OTP runtimes"
   @moduledoc """
   #{@shortdoc}
 
-  Cross-compile OTP together with NIFs
+  Build OTP runtimes together with NIFs and required dependencies.
   """
   use Mix.Task
 
@@ -66,7 +66,7 @@ defmodule Mix.Tasks.Compile.Otp do
     env =
       env
       |> add_nif_env(otp_nifs(arch) ++ extra_nifs)
-      |> List.keystore("LIBS", 0, {"LIBS", final_libs(arch)})
+      |> Kernel.++([{"LIBS", arch |> final_libs() |> Enum.join(" ")}])
 
     :ok = otp_mk(["build"], env)
 
@@ -136,8 +136,13 @@ defmodule Mix.Tasks.Compile.Otp do
     packages_path()
     |> Packages.all()
     |> Enum.reverse()
-    |> Enum.flat_map(&Path.wildcard(Path.join([staging_path, &1.name, "*.a"])))
-    |> Enum.join(" ")
+    |> Enum.flat_map(fn package ->
+      nif_path = Path.wildcard(Path.join([staging_path, package.name, "*.a"]))
+
+      nif_extra_runtime = Enum.map(package.extra_runtime, &"-l#{&1}")
+
+      nif_path ++ nif_extra_runtime
+    end)
   end
 
   defp openssl_lib(arch_id) do

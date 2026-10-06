@@ -28,7 +28,7 @@ defmodule Runtimes.Package do
   - `REPO`
   - `TAG`
   - `PLATFORMS`
-  - `EXTRA_RUNTIME_LIBS`
+  - `EXTRA_RUNTIME`
 
   # NIF
 
@@ -48,7 +48,8 @@ defmodule Runtimes.Package do
             tag: nil,
             archs: [],
             platforms: [],
-            manager: :runtimes
+            manager: :runtimes,
+            extra_runtime: []
 
   @type t :: %__MODULE__{
           mk: String.t() | nil,
@@ -59,6 +60,7 @@ defmodule Runtimes.Package do
           tag: String.t() | nil,
           archs: [String.t()],
           platforms: [String.t()],
-          manager: :runtimes | :mix
+          manager: :runtimes | :mix,
+          extra_runtime: [String.t()]
         }
 end
