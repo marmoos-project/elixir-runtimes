@@ -20,7 +20,7 @@ Supported platforms: `android` (`arm`, `arm64`, `x86_64`). List them with `mix r
 ```elixir
 def deps do
   [
-    {:runtimes, github: "jeanparpaillon/elixir-runtimes", runtime: false}
+    {:runtimes, github: "marmoos-project/elixir-runtimes", runtime: false}
   ]
 end
 ```
@@ -44,6 +44,12 @@ them into ERTS. The output is written to `_build/<env>/arch-<arch>/staging`.
 | `mix compile.nifs` | Build only the NIFs |
 | `mix runtimes platforms` / `packages` | List available platforms / packages |
 | `mix runtimes.packages env <arch>` | Print the cross-compilation env |
+
+Prints path to built artifact with `MIX_TARGET=<platform> mix runtimes artifact <arch>`:
+
+```sh
+MIX_TARGET=android mix runtimes artifact arm64
+```
 
 See `mix help <task>` for options.
 

@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Runtimes do
   @shortdoc "Runtimes utils"
   @usage """
     Usage:
+      mix runtimes artifact <arch> - Prints out path to the built runtime
       mix runtimes platforms - List available platforms
       mix runtimes packages - List available packages
       mix runtimes help - Show this help message
@@ -18,6 +19,16 @@ defmodule Mix.Tasks.Runtimes do
 
   def run(["help"]) do
     usage()
+  end
+
+  def run(["artifact", arch_id]) do
+    platform = Runtimes.find!(Mix.target())
+    arch = Runtimes.arch!(platform, arch_id)
+
+    Mix.shell().info(Runtimes.artifact(arch))
+  rescue
+    e in ArgumentError ->
+      Mix.raise("Error: #{e.message}")
   end
 
   def run(["platforms"]) do

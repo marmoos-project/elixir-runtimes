@@ -8,7 +8,12 @@ defmodule Runtimes.MixProject do
       elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
-      deps: deps()
+      deps: deps(),
+      # Docs
+      name: "Runtimes",
+      source_url: "https://github.com/marmoos-project/elixir-runtimes",
+      homepage_url: "https://github.com/marmoos-project/elixir-runtimes",
+      docs: &docs/0
     ]
   end
 
@@ -25,7 +30,19 @@ defmodule Runtimes.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.38", only: :dev, runtime: false}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      logo: "assets/logo.svg",
+      extras: ["README.md"],
+      groups_for_modules: [
+        "Mix tasks": ~r/^Mix\.Tasks\./
+      ]
     ]
   end
 end

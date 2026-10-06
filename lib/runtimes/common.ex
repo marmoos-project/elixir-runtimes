@@ -11,6 +11,10 @@ defmodule Runtimes.Common do
     end
   end
 
+  def artifact_path(arch) do
+    Path.join(build_path(arch), "liberlang.a")
+  end
+
   def source_path(arch) do
     Path.join(Mix.Project.deps_path(), "arch-#{arch}")
   end

@@ -19,6 +19,10 @@ defmodule Runtimes do
     end)
   end
 
+  def artifact(arch) do
+    artifact_path(arch.id)
+  end
+
   @doc """
   Returns default packages path
   """
