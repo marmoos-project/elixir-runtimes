@@ -14,8 +14,7 @@ defmodule Runtimes.Packages do
 
   def lookup([], type, platform) do
     all()
-    |> Enum.filter(&(&1.type == type))
-    |> Enum.filter(&Package.supports_platform?(&1, platform))
+    |> Enum.filter(&(&1.type == type and Package.supports_platform?(&1, platform)))
   end
 
   def lookup(names, type, platform) do

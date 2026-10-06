@@ -22,15 +22,13 @@ defmodule Mix.Tasks.Runtimes do
 
   def run(["platforms"]) do
     Runtimes.platforms()
-    |> Enum.map(&pp_platform/1)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &pp_platform/1)
     |> Mix.shell().info()
   end
 
   def run(["packages"]) do
     Packages.all()
-    |> Enum.map(&pp_package/1)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &pp_package/1)
     |> Mix.shell().info()
   end
 

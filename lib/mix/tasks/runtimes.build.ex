@@ -103,7 +103,7 @@ defmodule Mix.Tasks.Runtimes.Build do
     #{Path.join(staging_path(arch.id), "otp")}
 
     includes NIFs:
-    #{nifs |> Enum.map(& &1.name) |> Enum.join("\n")}
+    #{Enum.map_join(nifs, "\n", & &1.name)}
     """)
 
     :ok
