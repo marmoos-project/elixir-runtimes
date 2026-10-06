@@ -18,11 +18,40 @@ defmodule Runtimes.Packages.Doc.Package do
   def define(pkg) do
     quote do
       defmodule unquote(module_name(pkg)) do
-        @moduledoc """
-        Documentation for the #{unquote(pkg.name)} package.
-        """
+        @moduledoc unquote(moduledoc(pkg))
       end
     end
+  end
+
+  defp moduledoc(pkg) do
+    """
+    Recipe for building #{pkg.name} with ERTS.
+
+    #{source(pkg)}#{deps(pkg)}
+    """
+  end
+
+  defp source(pkg) do
+    """
+    * Source: #{pkg.repo}
+    * Version: [`#{pkg.tag}`](#{tree_url(pkg)})
+    """
+  end
+
+  defp deps(%Package{deps: []}), do: ""
+
+  defp deps(pkg) do
+    links =
+      Enum.map_join(pkg.deps, ", ", fn name ->
+        "`#{inspect(module_name(%Package{name: name, type: :package}))}`"
+      end)
+
+    "* Depends on: #{links}"
+  end
+
+  # Upstream sources at the pinned tag (GitHub URL layout)
+  defp tree_url(pkg) do
+    "#{String.trim_trailing(pkg.repo, ".git")}/tree/#{pkg.tag}"
   end
 end
 
