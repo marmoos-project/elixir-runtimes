@@ -85,16 +85,15 @@ defmodule Runtimes.Package do
     |> read_extra_runtime()
   end
 
-  def checked_out?(%__MODULE__{name: name}) do
-    repo_path = Path.join("deps", name)
-    File.exists?(repo_path)
+  def checked_out?(%__MODULE__{source_dir: source_dir}) do
+    File.exists?(source_dir)
   end
 
   def ensure_type!(%__MODULE__{type: type} = package, type) do
     package
   end
 
-  def ensure_type!(%__MODULE__{type: type} = package, _type) do
+  def ensure_type!(%__MODULE__{type: _type} = package, type) do
     Mix.raise("Package #{package.name} is not of type #{type}")
   end
 
